@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainfall Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="rain"></div>
+    <div class="container">
+        <h1>Rainfall Predictor</h1>
+        <p class="subtitle">Unlock the Secrets of the Sky</p>
+        <div class="input-box">
+            <select id="region">
+                <option value="Mumbai">Mumbai</option>
+                <option value="Chennai">Chennai</option>
+                <option value="Jaipur">Jaipur</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Pune">Pune</option>
+                <option value="Bangalore">Bangalore</option>
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Vijayawada">Vijayawada</option>
+                <option value="Odisha">Odisha</option>
+                <option value="Guntur">Guntur</option>
+                <option value="Kolkata">Kolkata</option>
+                <option value="Ahmedabad">Ahmedabad</option>
+                <option value="Lucknow">Lucknow</option>
+                <option value="Chandigarh">Chandigarh</option>
+                <option value="Bhopal">Bhopal</option>
+                <option value="Patna">Patna</option>
+            </select>
+            <button id="predict-btn">Predict</button>
+        </div>
+        <div class="result" id="result">
+            <div class="card" id="weather-card">
+                <h2>Current Weather</h2>
+                <p id="weather-info">Select a region to begin...</p>
+            </div>
+            <div class="card" id="prediction-card">
+                <h2>Prediction</h2>
+                <p id="prediction-info"></p>
+            </div>
+        </div>
+        <footer>Simulated Data based on Indian Monsoon Patterns | OpenWeather API <br/>
+             Prototype by 2200520228 (S. Lepakshi), 200520262 (G. Moulika), and 2200520103 (E. Manasa)</footer>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
