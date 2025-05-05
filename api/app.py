@@ -19,7 +19,9 @@ warnings.filterwarnings("ignore", category=UserWarning)
 app = Flask(__name__)
 
 # Load the trained model
-model_path = os.path.join("..", "models", "rainfall_model.pkl")
+# Use absolute path relative to app.py
+base_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(base_dir, "..", "models", "rainfall_model.pkl")
 if not os.path.exists(model_path):
     raise FileNotFoundError(f"Model file not found at {model_path}. Run train_model.py first.")
 with open(model_path, "rb") as f:
@@ -252,7 +254,7 @@ def predict():
         # Convert all float32 values to native Python float for JSON serialization
         response = {
             "region": region,
-            "rainfall_prev": float(0),  # Already an int, but convert for consistency
+            "rainfall_prev": float(0),
             "temperature": float(weather["temperature"]),
             "humidity": float(weather["humidity"]),
             "prediction": float(round(prediction, 1)),
