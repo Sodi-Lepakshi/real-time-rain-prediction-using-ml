@@ -1,133 +1,214 @@
-from flask import Flask, render_template, request, jsonify
-import pandas as pd
+import os
 import pickle
+import pandas as pd
+import numpy as np
+from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime
-import numpy as np
-import logging
-import os
+import matplotlib.pyplot as plt
+import io
+import base64
 
 app = Flask(__name__)
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Load the trained model
+model_path = "models/rainfall_model.pkl"
+with open(model_path, "rb") as f:
+    model = pickle.load(f)
 
-try:
-    # Log model loading
-    logger.info("Loading model")
+# OpenWeather API key (set via environment variable)
+API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-    # Load model
-    model_path = os.path.join(os.path.dirname(__file__), "..", "models", "rainfall_model.pkl")
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found at {model_path}")
-    with open(model_path, "rb") as f:
-        model = pickle.load(f)
+# Placeholder: Load test data (replace with your actual test data)
+# Example: X_test, y_test = load_test_data("path/to/test_data.csv")
+# For now, simulate test data
+np.random.seed(42)
+regions = ["Mumbai", "Chennai", "Jaipur", "Delhi", "Pune", "Bangalore", "Hyderabad", 
+           "Vijayawada", "Odisha", "Guntur", "Kolkata", "Ahmedabad", "Lucknow", 
+           "Chandigarh", "Bhopal", "Patna"]
+features = [
+    "Temperature", "Humidity", "Humidity_prev", "Humidity_Lag2", "Humidity_Rolling7",
+    "Temp_Rolling7", "Temp_Humidity", "Pressure", "Pressure_Rolling3", "Temp_Pressure",
+    "Rainfall_prev", "Rainfall_prev_2", "Rainfall_Lag3", "Rainfall_Rolling7",
+    "Month", "DayOfYear", "Sin_Month", "Cos_Month", "Sin_Day", "Cos_Day"
+] + [f"Region_{r}" for r in regions]
+X_test = pd.DataFrame(np.random.rand(1000, len(features)), columns=features)
+y_test = np.random.rand(1000) * 400  # Simulated rainfall in mm
+# Simulate city assignments for test data
+city_assignments = np.random.choice(regions, size=1000)
 
-    # OpenWeather API setup
-    API_KEY = os.getenv("OPENWEATHER_API_KEY")
-    if not API_KEY:
-        raise ValueError("OpenWeather API key not found. Set the OPENWEATHER_API_KEY environment variable.")
+# Helper function to get current weather data from OpenWeather API
+def get_weather_data(region):
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={region}&appid={API_KEY}&units=metric"
+    response = requests.get(url)
+    if response.status_code != 200:
+        return None
+    data = response.json()
+    return {
+        "temperature": data["main"]["temp"],
+        "humidity": data["main"]["humidity"],
+        "pressure": data["main"]["pressure"]
+    }
+
+# Helper function to categorize rainfall
+def categorize_rainfall(rainfall):
+    if rainfall == 0:
+        return "No Rain"
+    elif rainfall < 2.5:
+        return "Light Rain"
+    elif rainfall < 7.5:
+        return "Moderate Rain"
+    else:
+        return "Heavy Rain"
+
+# Generate Feature Importance Plot
+def generate_feature_importance_plot():
+    importances = model.feature_importances_
+    plt.figure(figsize=(10, 6))
+    plt.bar(features, importances)
+    plt.xticks(rotation=45, ha="right")
+    plt.title("Feature Importance in XGBoost Model")
+    plt.tight_layout()
     
-    BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png")
+    buffer.seek(0)
+    image_png = buffer.getvalue()
+    buffer.close()
+    plt.close()
+    return base64.b64encode(image_png).decode("utf-8")
 
-    def fetch_weather(city):
-        logger.info(f"Fetching weather for {city}")
-        try:
-            url = f"{BASE_URL}?q={city},IN&appid={API_KEY}&units=metric"
-            response = requests.get(url).json()
-            if response.get("cod") != 200:
-                raise Exception(f"API Error: {response.get('message')}")
-            rainfall = response.get("rain", {}).get("1h", 0)
-            temp = response["main"]["temp"]
-            humidity = response["main"]["humidity"]
-            pressure = response["main"]["pressure"]
-            logger.info(f"Weather for {city}: rainfall={rainfall}, temp={temp}, humidity={humidity}, pressure={pressure}")
-            return rainfall, temp, humidity, pressure
-        except Exception as e:
-            logger.error(f"Error fetching weather for {city}: {e}")
-            return 0, 25, 60, 1013
+# Generate Predicted vs. Actual Rainfall Plot
+def generate_prediction_plot():
+    y_pred = model.predict(X_test)
+    plt.figure(figsize=(8, 8))
+    plt.scatter(y_test, y_pred, alpha=0.5)
+    plt.plot([0, 400], [0, 400], 'r--')
+    plt.xlabel("Actual Rainfall (mm)")
+    plt.ylabel("Predicted Rainfall (mm)")
+    plt.title("Predicted vs. Actual Rainfall")
+    plt.tight_layout()
+    
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png")
+    buffer.seek(0)
+    image_png = buffer.getvalue()
+    buffer.close()
+    plt.close()
+    return base64.b64encode(image_png).decode("utf-8")
 
-    def get_rainfall_category(rainfall):
-        if rainfall < 2.5:
-            return "No Rain"
-        elif rainfall < 10:
-            return "Light Rain"
-        elif rainfall < 50:
-            return "Moderate Rain"
-        else:
-            return "Heavy Rain"
+# Generate Categorical Accuracy by City Plot
+def generate_category_accuracy_plot():
+    accuracies = {}
+    for city in regions:
+        # Filter test data for the city
+        city_mask = city_assignments == city
+        if city_mask.sum() == 0:
+            accuracies[city] = 0
+            continue
+        X_city = X_test[city_mask]
+        y_city = y_test[city_mask]
+        y_pred = model.predict(X_city)
+        
+        # Categorize predictions and actuals
+        categories_true = np.array([categorize_rainfall(y) for y in y_city])
+        categories_pred = np.array([categorize_rainfall(y) for y in y_pred])
+        
+        # Compute accuracy
+        accuracy = np.mean(categories_true == categories_pred)
+        accuracies[city] = accuracy * 100  # Convert to percentage
+    
+    plt.figure(figsize=(12, 6))
+    plt.bar(accuracies.keys(), accuracies.values())
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel("City")
+    plt.ylabel("Categorical Accuracy (%)")
+    plt.title("Categorical Accuracy by City")
+    plt.tight_layout()
+    
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png")
+    buffer.seek(0)
+    image_png = buffer.getvalue()
+    buffer.close()
+    plt.close()
+    return base64.b64encode(image_png).decode("utf-8")
 
-    @app.route("/")
-    def home():
-        return render_template("index.html")
+@app.route("/")
+def index():
+    # Generate charts
+    feature_importance_plot = generate_feature_importance_plot()
+    prediction_plot = generate_prediction_plot()
+    category_accuracy_plot = generate_category_accuracy_plot()
+    
+    return render_template(
+        "index.html",
+        feature_importance_plot=feature_importance_plot,
+        prediction_plot=prediction_plot,
+        category_accuracy_plot=category_accuracy_plot
+    )
 
-    @app.route("/predict", methods=["POST"])
-    def predict():
-        try:
-            region = request.json["region"]
-            logger.info(f"Predicting for region: {region}")
-            rainfall_prev, temp, humidity, pressure = fetch_weather(region)
+@app.route("/predict", methods=["POST"])
+def predict():
+    try:
+        data = request.get_json()
+        region = data.get("region")
 
-            current_date = datetime.now()
-            month = current_date.month
-            day_of_year = current_date.timetuple().tm_yday
-            sin_month = np.sin(2 * np.pi * month / 12)
-            cos_month = np.cos(2 * np.pi * month / 12)
-            sin_day = np.sin(2 * np.pi * day_of_year / 365)
-            cos_day = np.cos(2 * np.pi * day_of_year / 365)
+        # Get current weather data
+        weather = get_weather_data(region)
+        if not weather:
+            return jsonify({"error": "Unable to fetch weather data"}), 500
 
-            input_data = pd.DataFrame({
-                "Temperature": [temp],
-                "Humidity": [humidity],
-                "Humidity_prev": [humidity],
-                "Humidity_Lag2": [humidity],
-                "Humidity_Rolling7": [humidity],
-                "Temp_Rolling7": [temp],
-                "Temp_Humidity": [temp * humidity / 100],
-                "Pressure": [pressure],
-                "Pressure_Rolling3": [pressure],
-                "Temp_Pressure": [temp * pressure / 1000],
-                "Rainfall_prev": [rainfall_prev],
-                "Rainfall_prev_2": [0],
-                "Rainfall_Lag3": [0],
-                "Rainfall_Rolling7": [rainfall_prev],
-                "Rainfall_Rolling3": [rainfall_prev],
-                "Month": [month],
-                "DayOfYear": [day_of_year],
-                "Sin_Month": [sin_month],
-                "Cos_Month": [cos_month],
-                "Sin_Day": [sin_day],
-                "Cos_Day": [cos_day],
-                "Region": [region]
-            })
-            input_data = pd.get_dummies(input_data)
-            input_data = input_data.reindex(columns=model.feature_names_in_, fill_value=0)
+        # Prepare features for prediction
+        current_date = datetime.now()
+        month = current_date.month
+        day_of_year = current_date.timetuple().tm_yday
 
-            prediction = model.predict(input_data)[0]
-            prediction = max(0, prediction * 0.75 if prediction < 20 else prediction)
-            category = get_rainfall_category(prediction)
+        features_dict = {
+            "Temperature": weather["temperature"],
+            "Humidity": weather["humidity"],
+            "Humidity_prev": weather["humidity"],
+            "Humidity_Lag2": weather["humidity"],
+            "Humidity_Rolling7": weather["humidity"],
+            "Temp_Rolling7": weather["temperature"],
+            "Temp_Humidity": weather["temperature"] * weather["humidity"],
+            "Pressure": weather["pressure"],
+            "Pressure_Rolling3": weather["pressure"],
+            "Temp_Pressure": weather["temperature"] * weather["pressure"],
+            "Rainfall_prev": 0,
+            "Rainfall_prev_2": 0,
+            "Rainfall_Lag3": 0,
+            "Rainfall_Rolling7": 0,
+            "Month": month,
+            "DayOfYear": day_of_year,
+            "Sin_Month": np.sin(2 * np.pi * month / 12),
+            "Cos_Month": np.cos(2 * np.pi * month / 12),
+            "Sin_Day": np.sin(2 * np.pi * day_of_year / 365),
+            "Cos_Day": np.cos(2 * np.pi * day_of_year / 365)
+        }
 
-            response = {
-                "region": region,
-                "rainfall_prev": round(float(rainfall_prev), 2),
-                "temperature": round(float(temp), 2),
-                "humidity": round(float(humidity), 2),
-                "prediction": round(float(prediction), 2),
-                "category": category
-            }
-            logger.info(f"Raw prediction: {prediction}, Category: {category}")
-            logger.info(f"Response for {region}: {response}")
-            return jsonify(response)
-        except Exception as e:
-            error_response = {"error": str(e), "category": "Error"}
-            logger.error(f"Prediction error: {e}")
-            return jsonify(error_response), 500
+        # Add region as one-hot encoded features
+        for r in regions:
+            features_dict[f"Region_{r}"] = 1 if r == region else 0
 
-except Exception as e:
-    logger.error(f"Error initializing app: {str(e)}")
-    raise
+        # Convert to DataFrame
+        feature_df = pd.DataFrame([features_dict])
+
+        # Predict rainfall
+        prediction = model.predict(feature_df)[0]
+        prediction = max(0, prediction)
+        category = categorize_rainfall(prediction)
+
+        return jsonify({
+            "region": region,
+            "rainfall_prev": 0,
+            "temperature": weather["temperature"],
+            "humidity": weather["humidity"],
+            "prediction": round(prediction, 1),
+            "category": category
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)

@@ -6,6 +6,30 @@
     <title>Rainfall Prediction</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .analysis-section {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        .analysis-section h2 {
+            text-align: center;
+            color: #333;
+        }
+        .chart-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
     <div class="rain"></div>
@@ -43,6 +67,26 @@
                 <p id="prediction-info"></p>
             </div>
         </div>
+
+        <!-- Analysis Section for Charts -->
+        <div class="analysis-section">
+            <h2>Model Performance Analysis</h2>
+            <div class="chart-container">
+                <div>
+                    <h3>Figure 6: Feature Importance Plot</h3>
+                    <img src="data:image/png;base64,{{ feature_importance_plot }}" alt="Feature Importance Plot">
+                </div>
+                <div>
+                    <h3>Figure 7: Predicted vs. Actual Rainfall</h3>
+                    <img src="data:image/png;base64,{{ prediction_plot }}" alt="Predicted vs Actual Rainfall">
+                </div>
+                <div>
+                    <h3>Figure 8: Categorical Accuracy by City</h3>
+                    <img src="data:image/png;base64,{{ category_accuracy_plot }}" alt="Categorical Accuracy by City">
+                </div>
+            </div>
+        </div>
+
         <footer>Simulated Data based on Indian Monsoon Patterns | OpenWeather API <br/>
              Prototype by 2200520228 (S. Lepakshi), 200520262 (G. Moulika), and 2200520103 (E. Manasa)</footer>
     </div>
