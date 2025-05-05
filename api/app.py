@@ -2,6 +2,8 @@ import os
 import pickle
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 from flask import Flask, request, jsonify, render_template
 import requests
 from datetime import datetime
@@ -9,17 +11,21 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import seaborn as sns
+import warnings
+
+# Suppress XGBoost warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 app = Flask(__name__)
 
-# Load the trained model (adjusted path to go up one directory)
+# Load the trained model
 model_path = os.path.join("..", "models", "rainfall_model.pkl")
 if not os.path.exists(model_path):
     raise FileNotFoundError(f"Model file not found at {model_path}. Run train_model.py first.")
 with open(model_path, "rb") as f:
     model = pickle.load(f)
 
-# OpenWeather API key (set via environment variable)
+# OpenWeather API key
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
 if not API_KEY:
     raise ValueError("OPENWEATHER_API_KEY environment variable not set.")
@@ -29,6 +35,8 @@ np.random.seed(42)
 regions = ["Mumbai", "Chennai", "Jaipur", "Delhi", "Pune", "Bangalore", "Hyderabad", 
            "Vijayawada", "Odisha", "Guntur", "Kolkata", "Ahmedabad", "Lucknow", 
            "Chandigarh", "Bhopal", "Patna"]
+# Sort regions alphabetically to match pd.get_dummies() order in train_model.py
+regions.sort()
 features = [
     "Temperature", "Humidity", "Humidity_prev", "Humidity_Lag2", "Humidity_Rolling7",
     "Temp_Rolling7", "Temp_Humidity", "Pressure", "Pressure_Rolling3", "Temp_Pressure",
@@ -241,14 +249,17 @@ def predict():
         prediction = max(0, prediction)
         category = categorize_rainfall(prediction)
 
-        return jsonify({
+        # Convert all float32 values to native Python float for JSON serialization
+        response = {
             "region": region,
-            "rainfall_prev": 0,
-            "temperature": weather["temperature"],
-            "humidity": weather["humidity"],
-            "prediction": round(prediction, 1),
+            "rainfall_prev": float(0),  # Already an int, but convert for consistency
+            "temperature": float(weather["temperature"]),
+            "humidity": float(weather["humidity"]),
+            "prediction": float(round(prediction, 1)),
             "category": category
-        })
+        }
+
+        return jsonify(response)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
