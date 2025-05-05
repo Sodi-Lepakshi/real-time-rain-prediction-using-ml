@@ -5,7 +5,7 @@ import requests
 from datetime import datetime
 import numpy as np
 import logging
-import os 
+import os
 
 app = Flask(__name__)
 
@@ -14,17 +14,22 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 try:
-    # Load model
+    # Log model loading
     logger.info("Loading model")
-    model_path = "../models/rainfall_model.pkl"
+
+    # Load model
+    model_path = os.path.join(os.path.dirname(__file__), "models", "rainfall_model.pkl")
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found at {model_path}")
     with open(model_path, "rb") as f:
         model = pickle.load(f)
 
-    # OpenWeather API
-    API_KEY = os.getenv("OPENWEATHER_API_KEY", "d149a55f00c8216435d94bd2879acb66")
-    BASE_URL = "http://api.openweathermap.org/data/2.5/weather"
+    # OpenWeather API setup
+    API_KEY = os.getenv("OPENWEATHER_API_KEY")
+    if not API_KEY:
+        raise ValueError("OpenWeather API key not found. Set the OPENWEATHER_API_KEY environment variable.")
+    
+    BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
     def fetch_weather(city):
         logger.info(f"Fetching weather for {city}")
@@ -63,8 +68,7 @@ try:
             region = request.json["region"]
             logger.info(f"Predicting for region: {region}")
             rainfall_prev, temp, humidity, pressure = fetch_weather(region)
-            
-            # Add temporal features
+
             current_date = datetime.now()
             month = current_date.month
             day_of_year = current_date.timetuple().tm_yday
@@ -72,8 +76,7 @@ try:
             cos_month = np.cos(2 * np.pi * month / 12)
             sin_day = np.sin(2 * np.pi * day_of_year / 365)
             cos_day = np.cos(2 * np.pi * day_of_year / 365)
-            
-            # Prepare input data
+
             input_data = pd.DataFrame({
                 "Temperature": [temp],
                 "Humidity": [humidity],
@@ -100,13 +103,11 @@ try:
             })
             input_data = pd.get_dummies(input_data)
             input_data = input_data.reindex(columns=model.feature_names_in_, fill_value=0)
-            
-            # Predict and calibrate
+
             prediction = model.predict(input_data)[0]
             prediction = max(0, prediction * 0.75 if prediction < 20 else prediction)
             category = get_rainfall_category(prediction)
-            
-            # Convert to Python floats for JSON serialization
+
             response = {
                 "region": region,
                 "rainfall_prev": round(float(rainfall_prev), 2),
@@ -129,4 +130,4 @@ except Exception as e:
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port)
