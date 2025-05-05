@@ -12,16 +12,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 try:
-    # Check xgboost
-    try:
-        from xgboost import XGBRegressor
-    except ImportError:
-        logger.error("XGBoost not installed. Run: pip install xgboost")
-        raise ImportError("XGBoost not installed. Run: pip install xgboost")
-
     # Read the data
     logger.info("Loading historical_rainfall.csv")
-    data_path = "C:/Users/Sodi Lepakshi/batch12/data/historical_rainfall.csv"
+    data_path = os.path.join("..", "data", "historical_rainfall.csv")
     if not os.path.exists(data_path):
         logger.error(f"Data file not found at {data_path}. Run generate_data.py first.")
         raise FileNotFoundError(f"Data file not found at {data_path}. Run generate_data.py first.")
@@ -98,8 +91,10 @@ try:
 
     # Save the model
     logger.info("Saving model")
-    os.makedirs("C:/Users/Sodi Lepakshi/batch12/models", exist_ok=True)
-    with open("C:/Users/Sodi Lepakshi/batch12/models/rainfall_model.pkl", "wb") as f:
+    model_dir = os.path.join("..", "models")
+    os.makedirs(model_dir, exist_ok=True)
+    model_path = os.path.join(model_dir, "rainfall_model.pkl")
+    with open(model_path, "wb") as f:
         pickle.dump(model_regressor, f)
 
     # Print model accuracy

@@ -73,16 +73,24 @@
             <h2>Model Performance Analysis</h2>
             <div class="chart-container">
                 <div>
-                    <h3>Figure 6: Feature Importance Plot</h3>
+                    <h3>Figure 1: Feature Importance Plot</h3>
                     <img src="data:image/png;base64,{{ feature_importance_plot }}" alt="Feature Importance Plot">
                 </div>
                 <div>
-                    <h3>Figure 7: Predicted vs. Actual Rainfall</h3>
+                    <h3>Figure 2: Predicted vs. Actual Rainfall</h3>
                     <img src="data:image/png;base64,{{ prediction_plot }}" alt="Predicted vs Actual Rainfall">
                 </div>
                 <div>
-                    <h3>Figure 8: Categorical Accuracy by City</h3>
+                    <h3>Figure 3: Categorical Accuracy by City</h3>
                     <img src="data:image/png;base64,{{ category_accuracy_plot }}" alt="Categorical Accuracy by City">
+                </div>
+                <div>
+                    <h3>Figure 4: Average Rainfall by City</h3>
+                    <img src="data:image/png;base64,{{ rainfall_distribution_plot }}" alt="Average Rainfall by City">
+                </div>
+                <div>
+                    <h3>Figure 5: Rainfall Category Distribution</h3>
+                    <img src="data:image/png;base64,{{ rainfall_category_distribution }}" alt="Rainfall Category Distribution">
                 </div>
             </div>
         </div>

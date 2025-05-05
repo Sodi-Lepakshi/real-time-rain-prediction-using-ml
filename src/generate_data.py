@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import os
 
 # Parameters
 regions = ["Mumbai", "Chennai", "Jaipur", "Delhi", "Pune", "Bangalore", "Hyderabad", 
@@ -11,6 +12,10 @@ days = 365 * 3
 
 # Generate dates
 dates = [start_date + timedelta(days=i) for i in range(days)]
+
+# Ensure data directory exists (one level up)
+data_dir = os.path.join("..", "data")
+os.makedirs(data_dir, exist_ok=True)
 
 # Generate data
 data = []
@@ -90,5 +95,6 @@ for region in regions:
 
 # Create DataFrame and save
 df = pd.DataFrame(data)
-df.to_csv("C:/Users/Sodi Lepakshi/batch12/data/historical_rainfall.csv", index=False)
-print(f"Generated {len(df)} rows of data. Saved to C:/Users/Sodi Lepakshi/batch12/data/historical_rainfall.csv")
+output_path = os.path.join(data_dir, "historical_rainfall.csv")
+df.to_csv(output_path, index=False)
+print(f"Generated {len(df)} rows of data. Saved to {output_path}")

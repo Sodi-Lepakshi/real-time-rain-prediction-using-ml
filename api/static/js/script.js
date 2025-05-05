@@ -42,14 +42,12 @@ document.getElementById("predict-btn").addEventListener("click", function() {
         weatherCard.style.transition = "opacity 0.5s";
         predictionCard.style.transition = "opacity 0.5s";
 
-        // Style based on category
         predictionCard.className = "card";
         if (data.category) {
             predictionCard.classList.add(data.category.toLowerCase().replace(" ", "-") + "-rain");
             predictionInfo.style.color = data.category === "No Rain" ? "#00ff00" : "#e0e0e0";
         }
 
-        // Alert for heavy rain
         if (data.category === "Heavy Rain") {
             alert(`Heavy Rain Alert for ${data.region}! Expected: ${data.prediction} mm. Stay safe!`);
         }
